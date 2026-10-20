@@ -1,0 +1,49 @@
+.sfh-controls {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--safe-area-inset-bottom, 0px) + 12px);
+  z-index: var(--layer-notice);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 10px;
+  border-radius: var(--radius-l);
+  background-color: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  box-shadow: var(--shadow-s);
+  font-size: var(--font-ui-smaller);
+  color: var(--text-muted);
+}
+
+/* Clear Obsidian's mobile toolbar so the controls stay tappable. */
+.is-mobile .sfh-controls {
+  bottom: calc(var(--safe-area-inset-bottom, 0px) + 56px);
+}
+
+.sfh-controls button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-normal);
+  cursor: pointer;
+}
+
+.sfh-controls button:hover {
+  background-color: var(--background-modifier-hover);
+}
+
+.sfh-controls button:focus-visible {
+  box-shadow: 0 0 0 2px var(--background-modifier-border-focus);
+}
+
+.sfh-controls .sfh-position {
+  padding: 0 8px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

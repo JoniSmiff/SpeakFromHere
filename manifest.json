@@ -1,0 +1,9 @@
+{
+	"id": "speak-from-here",
+	"name": "Speak From Here",
+	"version": "0.3.0",
+	"minAppVersion": "1.4.0",
+	"description": "Read the current note aloud with the device's built-in voice, starting from the cursor.",
+	"author": "Jonas Smith",
+	"isDesktopOnly": false
+}
