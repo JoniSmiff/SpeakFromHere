@@ -13,7 +13,8 @@ Currently in beta.
 - **Pause, edit, resume.** The cursor follows along as it reads, so pausing to change a line and resuming picks up where you were.
 - **No account, no API key, no network.** Uses the speech synthesis built into your operating system. Nothing leaves your device.
 - **Markdown-aware.** Skips frontmatter, code blocks, comments, and link targets. Reads the text, not the syntax.
-- **Controls where you need them.** Ribbon icons, a floating control bar on mobile, the note's `...` menu, the long-press menu, and commands you can bind to hotkeys.
+- **Keeps going in the background.** Lock the phone or minimise Obsidian and it keeps reading. Pause, resume, and skip from the lock screen or with media keys.
+- **Controls where you need them.** Ribbon icons, a floating control bar on mobile, the note's `...` menu, the long-press menu, the lock screen and media keys, and commands you can bind to hotkeys.
 
 ## Usage
 
@@ -23,10 +24,12 @@ While it reads:
 
 | Action | Where |
 | --- | --- |
-| Pause / resume | Floating bar, ribbon, status bar, or command |
-| Back one sentence | Floating bar or command |
-| Skip ahead one sentence | Floating bar or command |
+| Pause / resume | Floating bar, ribbon, status bar, lock screen, media keys, or command |
+| Back one sentence | Floating bar, lock screen (previous track), media keys, or command |
+| Skip ahead one sentence | Floating bar, lock screen (next track), media keys, or command |
 | Stop | Floating bar, ribbon, or command |
+
+The lock screen controls are the system's own media controls: the lock screen and Control Center on iOS, the media flyout on Windows, Now Playing on macOS. They and the media keys work while Obsidian is in the background.
 
 Select text before starting and it reads only the selection. Long-press a word on mobile and choose **Read from here** to start there.
 
@@ -44,14 +47,14 @@ No hotkeys are assigned by default. Settings → Hotkeys, search for "Speak From
 | Controls in the note's menu | On | Adds read, pause, and stop to the `...` menu |
 | Move the cursor as it reads | On | Keeps the cursor on the current sentence |
 | Read the selection when there is one | On | |
-| Pause when Obsidian goes to the background | On | Holds your place when the app is backgrounded |
+| Lock screen and media key controls | On | Shows the note in the system media controls and keeps reading in the background. Off: mobile pauses when Obsidian leaves the screen |
 | Sentence length limit | 240 characters | Where long sentences split. Shorter chunks seek more precisely but pause more often |
 
 ## Platform support
 
 | Platform | Status |
 | --- | --- |
-| Windows, macOS, Linux | Works |
+| Windows, macOS, Linux | Works, including while Obsidian is minimised |
 | iOS, iPadOS | Works |
 | Android | **Not supported** |
 
@@ -59,7 +62,7 @@ Android's system WebView does not implement the Web Speech API — `window.speec
 
 Two things to know on iOS:
 
-- **Playback stops when Obsidian goes to the background or the screen locks.** A WebView gets no background audio. If hands-free listening with the screen off is what you want, you need a plugin that generates audio files instead.
+- **Background reading depends on the lock screen controls.** While a note plays, the plugin runs a silent audio loop. That is what lets iOS keep Obsidian awake with the screen locked and show it on the lock screen. Turn the setting off and reading pauses when Obsidian leaves the screen instead. Swiping Obsidian away in the app switcher stops it either way.
 - **Only the pre-installed system voices are reachable.** Downloaded enhanced and premium Siri voices are not exposed to web speech, so it will sound flatter than Siri does elsewhere.
 
 ## Installation

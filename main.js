@@ -19,7 +19,7 @@ const DEFAULT_SETTINGS = {
   moveCursorWhileReading: true,
   readSelectionIfAny: true,
   showControls: 'mobile', // mobile | always | never
-  pauseWhenBackgrounded: true,
+  mediaControls: true,
   ribbonControls: true,
   noteMenuControls: true,
 };
@@ -341,6 +341,143 @@ class Controls {
 }
 
 /* ------------------------------------------------------------------ */
+/* Media session                                                       */
+/* ------------------------------------------------------------------ */
+
+// Thirty seconds of 8 kHz, 8-bit mono silence as a WAV. Chromium treats clips
+// of five seconds or less as transient sound effects and won't route media
+// keys to them, so this has to be longer than that.
+function silentWav(seconds) {
+  const rate = 8000;
+  const samples = rate * seconds;
+  const view = new DataView(new ArrayBuffer(44 + samples));
+  const ascii = (offset, s) => {
+    for (let i = 0; i < s.length; i++) view.setUint8(offset + i, s.charCodeAt(i));
+  };
+  ascii(0, 'RIFF');
+  view.setUint32(4, 36 + samples, true);
+  ascii(8, 'WAVE');
+  ascii(12, 'fmt ');
+  view.setUint32(16, 16, true);   // fmt chunk size
+  view.setUint16(20, 1, true);    // PCM
+  view.setUint16(22, 1, true);    // mono
+  view.setUint32(24, rate, true); // sample rate
+  view.setUint32(28, rate, true); // bytes per second
+  view.setUint16(32, 1, true);    // block align
+  view.setUint16(34, 8, true);    // bits per sample
+  ascii(36, 'data');
+  view.setUint32(40, samples, true);
+  new Uint8Array(view.buffer, 44).fill(128); // 8-bit PCM is unsigned; 128 is zero
+  return new Blob([view.buffer], { type: 'audio/wav' });
+}
+
+// Speech synthesis alone doesn't count as "playing audio" to the OS, so a
+// silent loop plays alongside it. That is what puts the note on the lock
+// screen and in the system media controls, routes media keys here while
+// Obsidian is unfocused, and on iOS keeps the app awake in the background
+// so the next sentence can still be queued.
+class MediaSessionBridge {
+  constructor(plugin) {
+    this.plugin = plugin;
+    this.audio = null;
+    this.url = null;
+    this.title = '';
+  }
+
+  get session() {
+    return 'mediaSession' in navigator ? navigator.mediaSession : null;
+  }
+
+  update() {
+    const { reader, settings } = this.plugin;
+    if (reader.state === 'idle' || !settings.mediaControls) return this.release();
+    if (!this.audio) this.create();
+
+    // The first play() happens inside the tap that started reading, which
+    // is the only place iOS lets a media element start.
+    const speaking = reader.state === 'speaking';
+    if (speaking && this.audio.paused) this.audio.play().catch(() => {});
+    if (!speaking && !this.audio.paused) this.audio.pause();
+
+    const session = this.session;
+    if (!session) return;
+    session.playbackState = speaking ? 'playing' : 'paused';
+    if (typeof MediaMetadata !== 'undefined') {
+      session.metadata = new MediaMetadata({
+        title: this.title,
+        artist: `Sentence ${reader.index + 1} of ${reader.segments.length}`,
+        album: this.plugin.manifest.name,
+      });
+    }
+  }
+
+  create() {
+    if (!this.url) this.url = URL.createObjectURL(silentWav(30));
+    const audio = new Audio(this.url);
+    audio.loop = true;
+
+    // Something outside the plugin pausing the loop (a phone call, pulled
+    // headphones, another app taking over the audio) should pause the
+    // reading with it.
+    audio.addEventListener('pause', () => {
+      if (audio === this.audio && this.plugin.reader.state === 'speaking') {
+        this.plugin.reader.pause();
+      }
+    });
+
+    this.audio = audio;
+    const file = this.plugin.app.workspace.getActiveFile();
+    this.title = file ? file.basename : 'Note';
+    this.setHandlers(true);
+  }
+
+  // Let go entirely when reading stops, so media keys go back to whatever
+  // was playing before.
+  release() {
+    if (!this.audio) return;
+    const audio = this.audio;
+    this.audio = null;
+    audio.pause();
+    audio.removeAttribute('src');
+    audio.load();
+    this.setHandlers(false);
+    const session = this.session;
+    if (session) {
+      session.metadata = null;
+      session.playbackState = 'none';
+    }
+  }
+
+  setHandlers(on) {
+    const session = this.session;
+    if (!session) return;
+    const reader = this.plugin.reader;
+    const actions = {
+      play: () => reader.resume(),
+      pause: () => reader.pause(),
+      stop: () => reader.stop(),
+      previoustrack: () => reader.jump(-1),
+      nexttrack: () => reader.jump(1),
+    };
+    for (const [action, handler] of Object.entries(actions)) {
+      try {
+        session.setActionHandler(action, on ? handler : null);
+      } catch (e) {
+        // Not every platform knows every action.
+      }
+    }
+  }
+
+  destroy() {
+    this.release();
+    if (this.url) {
+      URL.revokeObjectURL(this.url);
+      this.url = null;
+    }
+  }
+}
+
+/* ------------------------------------------------------------------ */
 /* Plugin                                                              */
 /* ------------------------------------------------------------------ */
 
@@ -349,6 +486,7 @@ module.exports = class SpeakFromHerePlugin extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     this.reader = new Reader(this);
     this.controls = new Controls(this);
+    this.media = new MediaSessionBridge(this);
     this.voices = [];
     this.unloaded = false;
 
@@ -428,10 +566,13 @@ module.exports = class SpeakFromHerePlugin extends Plugin {
       })
     );
 
-    // iOS silences a backgrounded webview. Pausing keeps the position so
-    // coming back resumes cleanly instead of stalling mid-note.
+    // Without the media session holding it awake, iOS silences a backgrounded
+    // webview. Pausing keeps the position so coming back resumes cleanly
+    // instead of stalling mid-note. Desktop keeps speaking when minimised.
     this.registerDomEvent(document, 'visibilitychange', () => {
-      if (document.hidden && this.settings.pauseWhenBackgrounded) this.reader.pause();
+      if (document.hidden && Platform.isMobile && !this.settings.mediaControls) {
+        this.reader.pause();
+      }
     });
 
     this.addSettingTab(new SpeakFromHereSettingTab(this.app, this));
@@ -442,6 +583,7 @@ module.exports = class SpeakFromHerePlugin extends Plugin {
     this.unloaded = true;
     if (this.reader) this.reader.stop();
     if (this.controls) this.controls.destroy();
+    if (this.media) this.media.destroy();
   }
 
   // Ribbon icons are how these reach the menu behind the burger button at the
@@ -541,6 +683,7 @@ module.exports = class SpeakFromHerePlugin extends Plugin {
 
   updateStatus() {
     this.controls.update();
+    this.media.update();
     if (this.ribbonPause) {
       const paused = this.reader.state === 'paused';
       setIcon(this.ribbonPause, paused ? 'play' : 'pause');
@@ -676,12 +819,15 @@ class SpeakFromHereSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Pause when Obsidian goes to the background')
-      .setDesc('iOS cuts the audio anyway. Pausing holds your place so the controls resume instead of stalling.')
+      .setName('Lock screen and media key controls')
+      .setDesc(
+        'Pause, resume, and skip from the lock screen, the system media controls, and media keys. On a phone this is also what keeps reading going with the screen locked; with it off, reading pauses when Obsidian leaves the screen.'
+      )
       .addToggle((toggle) =>
-        toggle.setValue(this.plugin.settings.pauseWhenBackgrounded).onChange(async (value) => {
-          this.plugin.settings.pauseWhenBackgrounded = value;
+        toggle.setValue(this.plugin.settings.mediaControls).onChange(async (value) => {
+          this.plugin.settings.mediaControls = value;
           await this.plugin.saveSettings();
+          this.plugin.updateStatus();
         })
       );
 
