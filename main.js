@@ -819,9 +819,9 @@ class SpeakFromHereSettingTab extends PluginSettingTab {
       );
 
     new Setting(containerEl)
-      .setName('Lock screen and media key controls')
+      .setName('Keep reading in the background')
       .setDesc(
-        'Pause, resume, and skip from the lock screen, the system media controls, and media keys. On a phone this is also what keeps reading going with the screen locked; with it off, reading pauses when Obsidian leaves the screen.'
+        'Keeps reading with the phone locked or another app open, and adds play, pause, and skip to the lock screen and media keys. Turned off, the phone stops reading when Obsidian leaves the screen and picks back up when you return.'
       )
       .addToggle((toggle) =>
         toggle.setValue(this.plugin.settings.mediaControls).onChange(async (value) => {

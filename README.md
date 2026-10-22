@@ -47,7 +47,7 @@ No hotkeys are assigned by default. Settings → Hotkeys, search for "Speak From
 | Controls in the note's menu | On | Adds read, pause, and stop to the `...` menu |
 | Move the cursor as it reads | On | Keeps the cursor on the current sentence |
 | Read the selection when there is one | On | |
-| Lock screen and media key controls | On | Shows the note in the system media controls and keeps reading in the background. Off: mobile pauses when Obsidian leaves the screen |
+| Keep reading in the background | On | Keeps reading with the phone locked or another app open, and adds play, pause, and skip to the lock screen and media keys. Off: the phone stops reading when Obsidian leaves the screen and picks back up when you return |
 | Sentence length limit | 240 characters | Where long sentences split. Shorter chunks seek more precisely but pause more often |
 
 ## Platform support
@@ -62,7 +62,7 @@ Android's system WebView does not implement the Web Speech API — `window.speec
 
 Two things to know on iOS:
 
-- **Background reading depends on the lock screen controls.** While a note plays, the plugin runs a silent audio loop. That is what lets iOS keep Obsidian awake with the screen locked and show it on the lock screen. Turn the setting off and reading pauses when Obsidian leaves the screen instead. Swiping Obsidian away in the app switcher stops it either way.
+- **Background reading depends on "Keep reading in the background".** While a note plays, the plugin runs a silent audio loop. That is what lets iOS keep Obsidian awake with the screen locked and show it on the lock screen. Turn the setting off and iOS freezes reading when Obsidian leaves the screen, then picks back up when you return. Swiping Obsidian away in the app switcher stops it either way.
 - **Only the pre-installed system voices are reachable.** Downloaded enhanced and premium Siri voices are not exposed to web speech, so it will sound flatter than Siri does elsewhere.
 
 ## Installation
